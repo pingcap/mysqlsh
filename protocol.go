@@ -401,8 +401,6 @@ func (mc *mysqlXConn) processNotice(where string) error {
 		log.Fatalf("mysqlXConn.processNotice(%q): mc.pb == nil", where)
 	}
 
-	var payload string
-
 	f := new(Mysqlx_Notice.Frame)
 	if err := proto.Unmarshal(mc.pb.payload, f); err != nil {
 		log.Fatalf("error unmarshaling Notice f: %v", err)
@@ -415,10 +413,6 @@ func (mc *mysqlXConn) processNotice(where string) error {
 			if err := proto.Unmarshal(f.Payload, w); err != nil {
 				log.Fatalf("error unmarshaling Warning w: %v", err)
 			}
-			payload = fmt.Sprintf("Level: %+v, code: %d, msg: %s",
-				w.GetLevel().String(),
-				w.GetCode(),
-				w.GetMsg())
 		}
 	case 2: // session variable change
 		{
@@ -427,9 +421,6 @@ func (mc *mysqlXConn) processNotice(where string) error {
 			if err := proto.Unmarshal(f.Payload, s); err != nil {
 				log.Fatalf("error unmarshaling SessionVariableChanged s: %v", err)
 			}
-			payload = fmt.Sprintf("SessionVariableChanged: Param: %s, Value: %+v",
-				s.GetParam(),
-				s.GetValue()) // show value properly
 		}
 	case 3: // SessionStateChanged
 		{
@@ -437,14 +428,8 @@ func (mc *mysqlXConn) processNotice(where string) error {
 			if err := proto.Unmarshal(f.Payload, s); err != nil {
 				log.Fatalf("error unmarshaling SessionStateChanged s: %v", err)
 			}
-			payload = fmt.Sprintf("SessionStateChanged: Param: %s, Value: %+v",
-				s.GetParam(),
-				s.GetValue()) // show value properly
 		}
 	default:
-		{
-			payload = fmt.Sprintf("% x", f.Payload)
-		}
 	}
 
 	mc.pb = nil // reset message (as now processed)
@@ -587,7 +572,7 @@ func (mc *mysqlXConn) waitingForAuthenticateOk() error {
 		case Mysqlx.ServerMessages_NOTICE:
 			{
 				// Not currently documented (explicitly) but we always get this type of message prior to SESS_AUTHENTICATE_OK
-				_ := mc.processNotice("waitingForAuthenticateOk")
+				_ = mc.processNotice("waitingForAuthenticateOk")
 			}
 		default:
 			{
