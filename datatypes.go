@@ -17,7 +17,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/sjmudd/go-mysqlx-driver/Mysqlx_Datatypes"
+	"github.com/pingcap/tipb/go-mysqlx/Datatypes"
 )
 
 func printableScalar(s *Mysqlx_Datatypes.Scalar) string {

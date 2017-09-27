@@ -21,12 +21,9 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
-	"github.com/sjmudd/go-mysqlx-driver/Mysqlx"
-	"github.com/sjmudd/go-mysqlx-driver/Mysqlx_Resultset"
-	"github.com/sjmudd/go-mysqlx-driver/Mysqlx_Sql"
-
-	"github.com/sjmudd/go-mysqlx-driver/capability"
-	"github.com/sjmudd/go-mysqlx-driver/debug"
+	"github.com/pingcap/tipb/go-mysqlx"
+	"github.com/pingcap/tipb/go-mysqlx/Resultset"
+	"github.com/pingcap/tipb/go-mysqlx/Sql"
 )
 
 type mysqlXConn struct {
@@ -44,17 +41,13 @@ type mysqlXConn struct {
 	parseTime      bool
 	strict         bool
 	state          queryState
-	capabilities   capability.ServerCapabilities
+	capabilities   ServerCapabilities
 	systemVariable []byte
 }
 
 func (mc *mysqlXConn) capabilityTestUnknownCapability() error {
 	name := "randomCapability"
-	debug.Msg("Testing setting a random unknown tls capability")
 	err := mc.setScalarBoolCapability(name, true)
-	if err != nil {
-		debug.Msg("capabilityTestUnknownCapability fails: %v", err)
-	}
 	return err
 }
 
@@ -110,8 +103,6 @@ func (mc *mysqlXConn) Open2() (driver.Conn, error) {
 	// Check and use the first one we can. SHOULD prioritise.
 	values := mc.capabilities.Values("authentication.mechanisms")
 
-	//	debug.Msg("authentication.mechanisms found: %+v", values)
-
 	found := false
 	for i := range values {
 		if values[i].String() == "MYSQL41" {
@@ -162,7 +153,6 @@ func (mc *mysqlXConn) getSystemVar(name string) ([]byte, error) {
 	if name == "mysqlx_max_allowed_packet" {
 		// hard-coded: should not be FIXME FIXME
 		response := "1048576"
-		debug.Msg("FIXME: Using hard-coded value for getSystemVar(%s): %s", name, response)
 		return []byte(response), nil
 	}
 
@@ -226,29 +216,23 @@ func (mc *mysqlXConn) handleParams() (err error) {
 			if !mc.capabilities.Exists("tls") {
 				return errors.New("Server does not support TLS")
 			}
-			debug.Msg("Checking tls capability")
 			tls := mc.capabilities.Values("tls")
-			debug.Msg("- got back %d value(s) for tls", len(tls))
 			if len(tls) == 1 {
 				return fmt.Errorf("server tls capability returns unexpected result: len(tls) = %d, expecting 1", len(tls))
 			}
 			tlsType := tls[0].Type()
-			debug.Msg("- tls has one value of type: %s", tlsType)
 			if tlsType != "bool" {
 				return fmt.Errorf("server tls capability type unexpected: %s, expecting bool", tlsType)
 			}
 			tlsValue := tls[0].Bool()
-			debug.Msg("- tls value: %v", tlsValue)
 
 			// Setup or check the magic TLS config here
 			// - should have been done by the app before
 
 			// Tell the server we want to go in TLS mode.
-			debug.Msg("Enabling tls via CapabilitySet")
 			if err := mc.setScalarBoolCapability("tls", tlsValue); err != nil {
 				return fmt.Errorf("Failed to set Capability TLS <fill in here>: %+v", err)
 			}
-			debug.Msg("Enabling tls though the code won't handle it yet...")
 			// wait for OK back and if we get it then we go into TLS mode
 
 		// System Vars
@@ -266,14 +250,12 @@ func (mc *mysqlXConn) handleParams() (err error) {
 // Internal function to execute commands when we don't expect a resultset
 // e.g. for sending commands.
 func (mc *mysqlXConn) exec(query string) error {
-	debug.Msg("mysqlXConn.exec(%q) called", query)
 
 	// Should be able to use normal "query logic" here
 	rows, err := mc.Query(query, nil)
 	if err != nil {
 		return fmt.Errorf("mysqlXConn.exec failed: %+v", err)
 	}
-	debug.Msg("mysqlXConn.exec waiting for reponse")
 
 	// close the rows and handle any response packets received
 	return rows.Close()
@@ -286,10 +268,6 @@ func (mc *mysqlXConn) Begin() (driver.Tx, error) {
 
 // close the connection
 func (mc *mysqlXConn) Close() error {
-	//	debug.Msg("mysqlXConn.Close: entry")
-	if mc == nil {
-		debug.Msg("mysqlXConn: mc == nil")
-	}
 	if mc.netConn == nil {
 		return nil
 	}
@@ -319,7 +297,6 @@ func (mc *mysqlXConn) Close() error {
 				if err := proto.Unmarshal(pb.payload, ok); err != nil {
 					return fmt.Errorf("mysqlXConn.Close: Failed to read Ok: %v", err)
 				}
-				debug.Msg("Got response %s: msg: %s", printableMsgTypeIn(Mysqlx.ServerMessages_OK), ok.GetMsg())
 				done = true
 			}
 		case Mysqlx.ServerMessages_ERROR:
@@ -327,14 +304,11 @@ func (mc *mysqlXConn) Close() error {
 		case Mysqlx.ServerMessages_NOTICE:
 			mc.processNotice("mysqlXConn.Close()") // process the notice message
 		default:
-			debug.Msg("ignoring unexpected message: %s", printableMsgTypeIn(Mysqlx.ServerMessages_Type(pb.msgType)))
 		}
 	}
 
 	mc.netConn.Close()
 	mc.netConn = nil
-
-	//	debug.Msg("mysqlXConn.Close: exit")
 
 	return nil
 }
@@ -353,10 +327,7 @@ func (mc *mysqlXConn) Query(query string, args []driver.Value) (driver.Rows, err
 	}
 
 	if len(args) > 0 {
-		debug.Msg("WARNING not processing args for mysqlXConn.Query()")
 	}
-
-	debug.Msg("mysqlXConn.Query(%s,...)", query)
 
 	stmtExecute := &Mysqlx_Sql.StmtExecute{
 		Stmt: []byte(query),

@@ -1,9 +1,7 @@
-package capability
+package mysql
 
 import (
 	"fmt"
-
-//	"bitbucket.org/sjmudd/go-mysqlx-driver/debug"
 )
 
 // Capabilities are indexed by name and can be one of 7 protobuf types (including nesting...).
@@ -34,8 +32,10 @@ func (c *capability) Type() string {
 	var t string
 	if c != nil {
 		switch c.capabilityType {
-		case CapabilityBool: t = "bool"
-		case CapabilityString: t = "string"
+		case CapabilityBool:
+			t = "bool"
+		case CapabilityString:
+			t = "string"
 		}
 	}
 	return t

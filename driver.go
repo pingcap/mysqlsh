@@ -14,8 +14,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"net"
-
-	"github.com/sjmudd/go-mysqlx-driver/capability"
 )
 
 // This struct is exported to make the driver directly accessible.
@@ -49,7 +47,7 @@ func (d XDriver) Open(dsn string) (driver.Conn, error) {
 
 	// New mysqlConn
 	mc := &mysqlXConn{
-		capabilities:     capability.NewServerCapabilities(),
+		capabilities:     NewServerCapabilities(),
 		cfg:              NewXconfigFromConfig(cfg),
 		maxPacketAllowed: maxPacketSize,
 		maxWriteSize:     maxPacketSize - 1,

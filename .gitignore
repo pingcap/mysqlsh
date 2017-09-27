@@ -1,3 +1,4 @@
 cmd/bigmsg/bigmsg
 cmd/invalid_msg/invalid_msg
 cmd/zerolength/zerolength
+.idea/
