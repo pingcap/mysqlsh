@@ -21,7 +21,9 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
+	"github.com/pingcap/tidb/xprotocol/util"
 	"github.com/pingcap/tipb/go-mysqlx"
+	"github.com/pingcap/tipb/go-mysqlx/Datatypes"
 	"github.com/pingcap/tipb/go-mysqlx/Resultset"
 	"github.com/pingcap/tipb/go-mysqlx/Sql"
 )
@@ -326,11 +328,31 @@ func (mc *mysqlXConn) Query(query string, args []driver.Value) (driver.Rows, err
 		return nil, driver.ErrBadConn
 	}
 
+	nameSpace := "sql"
+	var stmtArgs []*Mysqlx_Datatypes.Any
 	if len(args) > 0 {
+		str, ok := args[0].(string)
+		if ok {
+			nameSpace = str
+		}
+		for i := 1; i < len(args); i++ {
+			var any Mysqlx_Datatypes.Any
+			switch v := args[i].(type) {
+			case string:
+				any = util.SetString([]byte(v))
+			case int:
+				any = util.SetUint(uint64(v))
+			default:
+				continue
+			}
+			stmtArgs = append(stmtArgs, &any)
+		}
 	}
 
 	stmtExecute := &Mysqlx_Sql.StmtExecute{
-		Stmt: []byte(query),
+		Namespace: &nameSpace,
+		Stmt:      []byte(query),
+		Args:      stmtArgs,
 	}
 
 	// write a StmtExecute packet with the given query to the network
