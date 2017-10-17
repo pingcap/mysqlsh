@@ -78,11 +78,13 @@ func (mc *mysqlXConn) Open2() (driver.Conn, error) {
 
 	// could/should be optional for performance? e.g. dsn has get_capabilities=0
 	if err = mc.getCapabilities(); err != nil {
-		return nil, errors.Trace(err)
+		log.Error(err)
+		log.Warningf("No capabilities, maybe for performance.")
 	}
 
 	if !mc.capabilities.Exists("authentication.mechanisms") {
-		return nil, errors.Errorf("mysqlXConn.Open2: did not find capability: authentication.mechanisms")
+		log.Warning("mysqlXConn.Open2: did not find capability: authentication.mechanisms")
+		return nil, nil
 	}
 
 	// Current known capabilities: as of 5.7.14
@@ -165,7 +167,7 @@ func (mc *mysqlXConn) handleParams() (err error) {
 			charsets := strings.Split(val, ",")
 			for i := range charsets {
 				// ignore errors here - a charset may not exist
-				err = mc.exec("SET NAMES " + charsets[i])
+				err = mc.exec("SET NAMES "+charsets[i], nil)
 				if err == nil {
 					break
 				}
@@ -232,7 +234,7 @@ func (mc *mysqlXConn) handleParams() (err error) {
 
 		// System Vars
 		default:
-			err = mc.exec("SET " + param + "=" + val + "")
+			err = mc.exec("SET "+param+"="+val+"", nil)
 			if err != nil {
 				return
 			}
@@ -243,10 +245,10 @@ func (mc *mysqlXConn) handleParams() (err error) {
 
 // Internal function to execute commands when we don't expect a resultset
 // e.g. for sending commands.
-func (mc *mysqlXConn) exec(query string) error {
+func (mc *mysqlXConn) exec(query string, args []driver.Value) error {
 
 	// Should be able to use normal "query logic" here
-	rows, err := mc.Query(query, nil)
+	rows, err := mc.Query(query, args)
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -307,20 +309,21 @@ func (mc *mysqlXConn) Close() error {
 	mc.netConn = nil
 	return nil
 }
+
 func (mc *mysqlXConn) Prepare(query string) (driver.Stmt, error) {
-	return nil, errors.Errorf("DEBUG: mysqlXConn.Prepare() not implemented yet")
+	return nil, errors.Errorf("Prepare statement '%s' error. mysqlXConn dose not support prepare.", query)
 }
+
 func (mc *mysqlXConn) Exec(query string, args []driver.Value) (driver.Result, error) {
 	mc.affectedRows = 0
 	mc.insertID = 0
-	err := mc.exec(query)
-	if err == nil {
-		return &mysqlResult{
-			affectedRows: int64(mc.affectedRows),
-			insertID:     int64(mc.insertID),
-		}, nil
+	if err := mc.exec(query, args); err != nil {
+		return nil, errors.Trace(err)
 	}
-	return nil, errors.Trace(err)
+	return &mysqlResult{
+		affectedRows: int64(mc.affectedRows),
+		insertID:     int64(mc.insertID),
+	}, nil
 }
 
 // Query is the public interface to making a query via database/sql

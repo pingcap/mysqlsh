@@ -412,10 +412,10 @@ func printAuthenticateOk(data []byte) {
 
 func (mc *mysqlXConn) processNotice(where string) error {
 	if mc == nil {
-		log.Fatalf("mysqlXConn.processNotice(%q): mc == nil", where)
+		return errors.Errorf("mysqlXConn.processNotice(%q): mc == nil", where)
 	}
 	if mc.pb == nil {
-		log.Fatalf("mysqlXConn.processNotice(%q): mc.pb == nil", where)
+		return errors.Errorf("mysqlXConn.processNotice(%q): mc.pb == nil", where)
 	}
 
 	f := new(Mysqlx_Notice.Frame)
@@ -427,17 +427,17 @@ func (mc *mysqlXConn) processNotice(where string) error {
 	case 1: // warning
 		w := new(Mysqlx_Notice.Warning)
 		if err := proto.Unmarshal(f.Payload, w); err != nil {
-			log.Fatalf("error unmarshaling Warning w: %v", err)
+			return errors.Trace(err)
 		}
 	case 2: // session variable change
 		s := new(Mysqlx_Notice.SessionVariableChanged)
 		if err := proto.Unmarshal(f.Payload, s); err != nil {
-			log.Fatalf("error unmarshaling SessionVariableChanged s: %v", err)
+			return errors.Trace(err)
 		}
 	case 3: // SessionStateChanged
 		s := new(Mysqlx_Notice.SessionStateChanged)
 		if err := proto.Unmarshal(f.Payload, s); err != nil {
-			log.Fatalf("error unmarshaling SessionStateChanged s: %v", err)
+			return errors.Trace(err)
 		}
 	}
 	mc.pb = nil // reset message (as now processed)
