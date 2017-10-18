@@ -50,7 +50,6 @@ func (mc *mysqlXConn) capabilityTestUnknownCapability() error {
 // second stage of the open once the driver has been selecteed
 func (mc *mysqlXConn) Open2() (driver.Conn, error) {
 	var err error
-
 	// Connect to Server
 	if dial, ok := dials[mc.cfg.net]; ok {
 		mc.netConn, err = dial(mc.cfg.addr)
@@ -78,13 +77,11 @@ func (mc *mysqlXConn) Open2() (driver.Conn, error) {
 
 	// could/should be optional for performance? e.g. dsn has get_capabilities=0
 	if err = mc.getCapabilities(); err != nil {
-		log.Error(err)
-		log.Warningf("No capabilities, maybe for performance.")
+		return nil, errors.Trace(err)
 	}
 
 	if !mc.capabilities.Exists("authentication.mechanisms") {
-		log.Warning("mysqlXConn.Open2: did not find capability: authentication.mechanisms")
-		return nil, nil
+		return nil, errors.Errorf("mysqlXConn.Open2: did not find capability: authentication.mechanisms")
 	}
 
 	// Current known capabilities: as of 5.7.14
@@ -259,11 +256,13 @@ func (mc *mysqlXConn) exec(query string, args []driver.Value) error {
 
 // methods needed to make things work
 func (mc *mysqlXConn) Begin() (driver.Tx, error) {
-	return nil, errors.Errorf("DEBUG: mysqlXConn.Begin() not implemented yet")
+	log.Info("Use begin.")
+	return nil, errors.Errorf("cannot use 'begin', mysqlXConn does not support transaction")
 }
 
 // close the connection
 func (mc *mysqlXConn) Close() error {
+	log.Info("Closing connection.")
 	if mc.netConn == nil {
 		return nil
 	}
@@ -311,10 +310,12 @@ func (mc *mysqlXConn) Close() error {
 }
 
 func (mc *mysqlXConn) Prepare(query string) (driver.Stmt, error) {
+	log.Infof("Query: %d", query)
 	return nil, errors.Errorf("Prepare statement '%s' error. mysqlXConn dose not support prepare.", query)
 }
 
 func (mc *mysqlXConn) Exec(query string, args []driver.Value) (driver.Result, error) {
+	log.Infof("Query: %d", query)
 	mc.affectedRows = 0
 	mc.insertID = 0
 	if err := mc.exec(query, args); err != nil {
@@ -328,6 +329,7 @@ func (mc *mysqlXConn) Exec(query string, args []driver.Value) (driver.Result, er
 
 // Query is the public interface to making a query via database/sql
 func (mc *mysqlXConn) Query(query string, args []driver.Value) (driver.Rows, error) {
+	log.Infof("Query: %d", query)
 	if mc.netConn == nil {
 		return nil, driver.ErrBadConn
 	}

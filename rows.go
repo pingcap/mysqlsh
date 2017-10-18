@@ -250,6 +250,12 @@ func (rows *mysqlXRows) collectColumnMetaData() error {
 				return errors.Trace(err)
 			}
 			rows.state = queryStateError
+		case Mysqlx.ServerMessages_RESULTSET_FETCH_DONE:
+			rows.state = queryStateWaitingExecuteOk
+			rows.mc.pb = nil
+		case Mysqlx.ServerMessages_SQL_STMT_EXECUTE_OK:
+			rows.state = queryStateDone
+			rows.mc.pb = nil
 		default:
 			e := errors.Errorf("mysqlXRows.collectColumnMetaData: received unexpected message type: %s",
 				printableMsgTypeIn(Mysqlx.ServerMessages_Type(rows.mc.pb.msgType)))

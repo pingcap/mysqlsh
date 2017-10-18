@@ -15,6 +15,7 @@ import (
 	"database/sql/driver"
 	"net"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/juju/errors"
 )
 
@@ -40,8 +41,8 @@ func RegisterDial(net string, dial DialFunc) {
 
 // Open implements database driver Open()
 func (d XDriver) Open(dsn string) (driver.Conn, error) {
+	log.Infof("Opening dsn: %s", dsn)
 	var err error
-
 	cfg, err := parseDSN(dsn)
 	if err != nil {
 		return nil, errors.Trace(err)

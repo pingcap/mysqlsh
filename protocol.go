@@ -105,7 +105,7 @@ func (mc *mysqlXConn) writeProtobufPacket(pb *netProtobuf) error {
 	data[2] = byte(pktLen >> 16)
 	data[3] = byte(pktLen >> 24)
 	data[4] = byte(pb.msgType)
-	size = pktLen
+	size = pktLen - 1
 
 	// Write header
 	n, err := mc.netConn.Write(data)
